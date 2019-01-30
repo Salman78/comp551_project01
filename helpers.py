@@ -1,28 +1,26 @@
-import numpy as np
+import numpy as np, math
 def linear_regression(X, Y):
     XT = np.transpose(np.copy(X))
     return np.matmul(np.linalg.inv(np.matmul(XT,X)), np.matmul(XT,Y))
 
 
-def make_row(comment, row, X, Y, functions, numwords):
+def make_row(comment, row, X, Y, functions, numwords, words):
     new_row = [1]
     for fun in functions :
         new_row.append(fun(comment))
-    new_row += count_words(numwords, comment)
+    new_row += count_words(numwords, comment, words)
     X[row] = new_row
     Y[row] = get_popularity(comment)
 
-def count_words(numwords, comment):
+def count_words(numwords, comment, words):
     if (numwords > 0):
         to_ret = []
-        file = open("RankedList.txt", "r")
         for i in range(numwords):
-            str_l = file.readline().split()
-            if len(str_l) > 0:
-                to_ret.append(comment["text"].lower().count(str_l[0]))
+            str_l = words[i]
+            if str_l[-1] == '\n':
+                to_ret.append(comment["text"].count(str_l[:-1]))
             else :
-                to_ret.append(0)
-        file.close()
+                to_ret.append(to_ret.append(comment["text"].count(str_l)))
         return to_ret
     else :
         return []
@@ -54,14 +52,37 @@ def get_is_root(comment):
 def get_length(comment):
     return 1/len(comment["text"])
 
+def test(comment):
+    return 1 if comment["text"] == "[deleted]" else 0
+    # numwords = len(comment["text"].split())
+    # return 1 if numwords >= 10 else 0
+    # return 1 if len(comment["text"]) > 21 else 0
+
+def is_question(comment):
+    return comment["text"].count("?")
+
+def num_curses(comment):
+    text = comment["text"].lower()
+    return 1 if (text.count(" r/")+text.count(" /r/") > 0) else 0
+
+def get_numbers(comment):
+    text = comment["text"]
+    count = text.count("1")+text.count("2")+text.count("3")+text.count("4")+text.count("5")+text.count("6")+text.count("7")+text.count("8")+text.count("9")+text.count("0")
+    return 1 if count > 0 else 0
 
 def get_punctuation(comment):
     periods = comment["text"].count('.')
     commas = comment["text"].count(',')
-    return periods+commas
+    colons = comment["text"].count(':')
+    semicolons = comment["text"].count(';')
+    excls = comment["text"].count('!')
+    quests = comment["text"].count('?')
+    return 1 if periods+commas+colons+semicolons+excls+quests > 3 else 0
 
 def get_links(comment):
-    return comment["text"].count("http")
+    words = comment["text"].split()
+    cap = [word for word in words if word.isupper() and word != "I"]
+    return len(cap)
 
 def get_youtube(comment):
     return comment["text"].count("youtube.com")+comment["text"].count("youtu.be")
@@ -80,20 +101,26 @@ def get_slang(comment):
     str = comment["text"].lower()
     return str.count("vs")
 
-def true_error(X, W, Y):
+def mse(X, W, Y):
     F = np.matmul(X, W)
-    error_vector = np.square(F-Y)
-    return np.sum(error_vector)/np.size(Y)
+    error_vector = (Y-F)
+    squared_error = np.matmul(np.transpose(error_vector), error_vector)
+    return (squared_error)/np.size(Y)
 
 def do_regression(data, functions, numwords, expl):
     num_of_features = len(functions) + numwords + 1
+    file = open("Unfiltered.txt", "r")
+    words = []
+    for i in range(numwords):
+        words.append(file.readline())
+    file.close()
     # Create matrix X
     training_X = np.empty([10000, num_of_features])
     # Create matrix Y
     training_Y = np.empty([10000, 1])
 
     for i in range(0, 10000):
-        make_row(data[i], i, training_X, training_Y, functions, numwords)
+        make_row(data[i], i, training_X, training_Y, functions, numwords, words)
 
     W = linear_regression(training_X, training_Y)
 
@@ -101,12 +128,12 @@ def do_regression(data, functions, numwords, expl):
     validation_Y = np.empty([1000, 1])
 
     for i in range(10000, 11000):
-        make_row(data[i], i - 10000, validation_X, validation_Y, functions, numwords)
+        make_row(data[i], i - 10000, validation_X, validation_Y, functions, numwords, words)
 
     print("For %s\n" % expl)
-    training_error = true_error(training_X, W, training_Y)
+    training_error = mse(training_X, W, training_Y)
     print("Error on training data : %f\n" % training_error)
-    validation_error = true_error(validation_X, W, validation_Y)
+    validation_error = mse(validation_X, W, validation_Y)
     print("Error on validation data : %f\n" % validation_error)
 
     return (training_error, validation_error)
