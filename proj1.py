@@ -1,6 +1,6 @@
 import numpy as np, json
 from helpers import make_row, linear_regression, mse, get_children, get_controversiality, get_is_root, get_length, get_punctuation, get_links, get_reddit, get_youtube, get_wikipedia, get_imgur, get_slang, do_regression, mid_freq_words
-from helpers import get_numbers, is_question, num_curses, test
+from helpers import get_numbers, is_question, num_curses, test,
 with open("proj1_data.json") as fp:
     data = json.load(fp)
 
@@ -19,3 +19,5 @@ res_6 = do_regression(data, functions, 160, "+ 160 words")
 print(res_4[1] - res_1[1])
 print(res_5[1] - res_2[1])
 print(res_6[1] - res_3[1])
+
+print()

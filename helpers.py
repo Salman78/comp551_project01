@@ -124,6 +124,7 @@ def do_regression(data, functions, numwords, expl):
 
     W = linear_regression(training_X, training_Y)
 
+
     validation_X = np.empty([1000, num_of_features])
     validation_Y = np.empty([1000, 1])
 
