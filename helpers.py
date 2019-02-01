@@ -1,4 +1,5 @@
-import numpy as np, math
+import numpy as np, math, timeit
+# import nltk
 def linear_regression(X, Y):
     XT = np.transpose(np.copy(X))
     return np.matmul(np.linalg.inv(np.matmul(XT,X)), np.matmul(XT,Y))
@@ -15,27 +16,41 @@ def make_row(comment, row, X, Y, functions, numwords, words):
 def count_words(numwords, comment, words):
     if (numwords > 0):
         to_ret = []
+        text = comment["text"].lower().split()
         for i in range(numwords):
             str_l = words[i]
             if str_l[-1] == '\n':
-                to_ret.append(comment["text"].count(str_l[:-1]))
+                to_ret.append(text.count(str_l[:-1]))
             else :
-                to_ret.append(to_ret.append(comment["text"].count(str_l)))
+                to_ret.append(to_ret.append(comment["text"].lower().count(str_l)))
         return to_ret
     else :
         return []
 
 
-def mid_freq_words(comment):
-    text =comment["text"].lower()
-    count = 0
-    with open("MiddleFrequency.txt", "r") as f:
-        for line in f:
-            l = line.split()
-            if len(l) > 0:
-                count += text.count(l[0])
+def do_regression(data, functions, numwords, expl, words):
+    num_of_features = len(functions) + numwords + 1
+    # Create matrix X
+    training_X = np.empty([10000, num_of_features])
+    # Create matrix Y
+    training_Y = np.empty([10000, 1])
+    for i in range(0, 10000):
+        make_row(data[i], i, training_X, training_Y, functions, numwords, words)
+    start = timeit.default_timer()
+    W = linear_regression(training_X, training_Y)
+    stop = timeit.default_timer()
+    validation_X = np.empty([1000, num_of_features])
+    validation_Y = np.empty([1000, 1])
+    for i in range(10000, 11000):
+        make_row(data[i], i - 10000, validation_X, validation_Y, functions, numwords, words)
+    print("For %s" % expl)
+    print("Runtime of the regression : ", stop-start, " seconds")
+    training_error = mse(training_X, W, training_Y)
+    print("Error on training data : %f" % training_error)
+    validation_error = mse(validation_X, W, validation_Y)
+    print("Error on validation data : %f" % validation_error)
+    return (training_error, validation_error)
 
-    return count
 
 def get_popularity(comment):
     return comment["popularity_score"]
@@ -49,8 +64,39 @@ def get_controversiality(comment):
 def get_is_root(comment):
     return 1 if comment["is_root"] else 0
 
+
+def mse(X, W, Y):
+    F = np.matmul(X, W)
+    error_vector = (Y-F)
+    squared_error = np.matmul(np.transpose(error_vector), error_vector)
+    return (squared_error)/np.size(Y)
+
+
+def log_children(comment):
+    return math.log(comment["children"]) if comment["children"] > 0 else 0
+
+def square_children(comment):
+    return comment["children"] **2
+
+def check_length(comment):
+    return 1 if len(comment["text"]) > 21 else 0
+
+# The following functions were just used as potential new features and are not used in the final model
+
+
+def mid_freq_words(comment):
+    text =comment["text"].lower()
+    count = 0
+    with open("MiddleFrequency.txt", "r") as f:
+        for line in f:
+            l = line.split()
+            if len(l) > 0:
+                count += text.count(l[0])
+
+    return count
+
 def get_length(comment):
-    return 1/len(comment["text"])
+    return len(comment["text"])
 
 def test(comment):
     return 1 if comment["text"] == "[deleted]" else 0
@@ -59,11 +105,11 @@ def test(comment):
     # return 1 if len(comment["text"]) > 21 else 0
 
 def is_question(comment):
-    return comment["text"].count("?")
+    return comment["text"].count(".")
 
 def num_curses(comment):
     text = comment["text"].lower()
-    return 1 if (text.count(" r/")+text.count(" /r/") > 0) else 0
+    return text.count("fuck")+text.count("shit")+text.count("bitch")
 
 def get_numbers(comment):
     text = comment["text"]
@@ -101,40 +147,50 @@ def get_slang(comment):
     str = comment["text"].lower()
     return str.count("vs")
 
-def mse(X, W, Y):
-    F = np.matmul(X, W)
-    error_vector = (Y-F)
-    squared_error = np.matmul(np.transpose(error_vector), error_vector)
-    return (squared_error)/np.size(Y)
+'''
 
-def do_regression(data, functions, numwords, expl):
-    num_of_features = len(functions) + numwords + 1
-    file = open("Unfiltered.txt", "r")
-    words = []
-    for i in range(numwords):
-        words.append(file.readline())
-    file.close()
-    # Create matrix X
-    training_X = np.empty([10000, num_of_features])
-    # Create matrix Y
-    training_Y = np.empty([10000, 1])
+def count_adjectives(comment):
+    counter=0;
+    try:
+        text = nltk.word_tokenize(comment["text"]) #tokenizes the words in the comment
+    except:
+        print(1)
+        return 0
+    result = nltk.pos_tag(text) #produces a list of tuples that identifies properties of each word
+    for x in range(0,len(result)):
+        if result[x][1] == "RB":#if any adjective is found
+            counter = counter+1 #augment counter
+    return counter
 
-    for i in range(0, 10000):
-        make_row(data[i], i, training_X, training_Y, functions, numwords, words)
+def adjective_ratio(comment):
+    counter=0;
+    try:
+        text = nltk.word_tokenize(comment["text"]) #tokenizes the words in the comment
+        length = len(text)
+    except:
+        return 0
+    result = nltk.pos_tag(text) #produces a list of tuples that identifies properties of each word
+    for x in range(0,len(result)):
+        if not result[x][1].find("JJ")==-1:#if any adjective is found
+            counter = counter+1 #augment counter
+    ratio = counter/length
+    return ratio
 
-    W = linear_regression(training_X, training_Y)
+def count_nouns(comment):
+    counter=0;
+    try:
+        text = nltk.word_tokenize(comment['text']) #tokenizes the words in the comment
+    except:
+        return 0
+    result = nltk.pos_tag(text) #produces a list of tuples that identifies properties of each word
+    for x in range(0,len(result)):
+        if not result[x][1].find("NN")==-1:#if any adjective is found
+            counter = counter+1 #augment counter
+    return counter
 
+def nva(comment):
+    nouns = count_nouns(comment)
+    ratio = count_adjectives(comment)/nouns if nouns > 0 else count_adjectives(comment)
+    return ratio
 
-    validation_X = np.empty([1000, num_of_features])
-    validation_Y = np.empty([1000, 1])
-
-    for i in range(10000, 11000):
-        make_row(data[i], i - 10000, validation_X, validation_Y, functions, numwords, words)
-
-    print("For %s\n" % expl)
-    training_error = mse(training_X, W, training_Y)
-    print("Error on training data : %f\n" % training_error)
-    validation_error = mse(validation_X, W, validation_Y)
-    print("Error on validation data : %f\n" % validation_error)
-
-    return (training_error, validation_error)
+'''

@@ -1,18 +1,42 @@
 import numpy as np
-from proj1 import training_X, training_Y
+import timeit
+import helpers
 
-def gradient_descent(X, Y, data_points, features, weights, learning_rate, iterations):
+def gradient_descent(training_X, training_Y, learning_rate, iterations):
+    [N, m] = np.shape(training_X)
+    data_points = N
+    features = m
+
+    X = training_X
+    Y = training_Y
+    Y = Y.reshape((np.shape(training_X)[0],))
+    weights = np.ones(features)
+
+    weights = gradient_descent(X, Y, data_points, features,  learning_rate, iterations)
+    return weights
+
+def gradient_descent_algorithm(data_points,data,  features, learning_rate, iterations, words):
+    X =  np.empty([10000, features])
+    Y = np.empty([10000, 1])
+
+    functions = [helpers.get_children, helpers.get_controversiality, helpers.get_is_root]
+    for i in range(10000):
+        helpers.make_row(data[i], i, X, Y, functions, features-4, words)
+
     X_tran = X.transpose() #we transpose outside the loop for time complexity
+    weights = np.ones([features, 1])
+    start = timeit.default_timer()
     for i in range(0, iterations):
-        hypothesis = np.dot(X, weights)  # column vector of hypothesis stored as contiguous block of elements
+        hypothesis = np.dot(X, weights)
 
-        loss = hypothesis - Y  # column vector loss stored as contiguous elements
+        loss = hypothesis - Y
 
-        cost = np.sum(loss**2) / (2*data_points)
-        epsilon = 1.000
-        if(cost <= epsilon):
+        cost = np.sum(loss**2) / (data_points)
+        epsilon = 1.005
+        upper_bound = 100000000000
+        if(cost <= epsilon or cost >= upper_bound):
             break
-        print("Iteration: %d | Cost: %f" % (i, cost)) #tracking MSE in every iteration
+        # print("Iteration: %d | Cost: %f" % (i, cost)) #tracking MSE in every iteration
 
         gradient = np.dot(X_tran, loss) / data_points
         '''
@@ -26,21 +50,9 @@ def gradient_descent(X, Y, data_points, features, weights, learning_rate, iterat
         print('GRADIENT SHAPE = ', np.shape(gradient))
         '''
         weights = weights - learning_rate * gradient
+    stop = timeit.default_timer()
+    print("Gradient descent with {0} words found MSE : {1} in {2} seconds".format((features-4), cost, (stop-start)))
     return weights
 
-
-[N, m] = np.shape(training_X)
-data_points = N
-features = m
-
-learning_rate = 0.0000281
-iterations = 100000
-X = training_X
-Y = training_Y
-Y = Y.reshape((np.shape(training_X)[0],))
-weights = np.ones(features)
-
-weights = gradient_descent(X, Y, data_points, features, weights, learning_rate, iterations)
-print(weights)
 
 
